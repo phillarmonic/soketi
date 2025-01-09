@@ -19,9 +19,9 @@ WORKDIR /tmp/build
 
 RUN set -e ; \
     pnpm install; \
-    npm ci ; \
+    npm ci; \
     pnpm run build ; \
-    pnpm ci --omit=dev --ignore-scripts ; \
+    npm ci --omit=dev --ignore-scripts ; \
     pnpm prune --production ; \
     rm -rf node_modules/*/test/ node_modules/*/tests/ ; \
     pnpm install -g modclean ; \
