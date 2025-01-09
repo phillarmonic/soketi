@@ -1,7 +1,12 @@
 ARG VERSION=18
 
 FROM --platform=$BUILDPLATFORM node:$VERSION-alpine AS build
+RUN apk add --no-cache --update git python3 py3-pip py3-setuptools gcompat bash && \
+    apk add --virtual build-dependencies build-base gcc wget && \
+    ln -sf python3 /usr/bin/python
 
+# Shell configuration
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ENV PYTHONUNBUFFERED=1
 
@@ -9,12 +14,7 @@ COPY . /tmp/build
 
 WORKDIR /tmp/build
 
-RUN apk add --no-cache --update git python3 gcompat ; \
-    apk add --virtual build-dependencies build-base gcc wget ; \
-    ln -sf python3 /usr/bin/python ; \
-    python3 -m ensurepip ; \
-    pip3 install --no-cache --upgrade pip setuptools ; \
-    npm ci ; \
+RUN npm ci ; \
     npm run build ; \
     npm ci --omit=dev --ignore-scripts ; \
     npm prune --production ; \
