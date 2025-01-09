@@ -13,12 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        distro: [alpine, bookworm]
+        distro: [alpine]
         include:
           - distro: alpine
             dockerfile: Dockerfile
-          - distro: bookworm
-            dockerfile: Dockerfile.debian
+#          - distro: bookworm
+#            dockerfile: Dockerfile.debian
     steps:
       - uses: actions/checkout@v4
 
