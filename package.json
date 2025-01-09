@@ -76,6 +76,7 @@
     "typescript": "^4.5.4"
   },
   "scripts": {
+    "start": "SOKETI_DEBUG=true node bin/server.js start",
     "build": "node node_modules/typescript/bin/tsc",
     "build:watch": "npm run build -- -W",
     "lint": "eslint --ext .js,.ts ./src",

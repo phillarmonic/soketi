@@ -13,7 +13,7 @@ import { Server } from './server';
 import { Utils } from './utils';
 import { WebSocket } from 'uWebSockets.js';
 import { PusherToken } from './utils/pusher-token';
-
+import { getClientIp, getIpInfo } from './utils/ip';
 import Pusher from 'pusher';
 
 export class WsHandler {
@@ -279,10 +279,14 @@ export class WsHandler {
      * Mutate the upgrade request.
      */
     handleUpgrade(res: HttpResponse, req: HttpRequest, context): any {
+        const ipInfo = getIpInfo(req, res);
+
         res.upgrade(
             {
-                ip: Buffer.from(res.getRemoteAddressAsText()).toString('utf8'),
-                ip2: Buffer.from(res.getProxiedRemoteAddressAsText()).toString('utf8'),
+                ip: ipInfo.clientIp,
+                originalIp: ipInfo.originalIp,
+                proxyIp: ipInfo.proxyIp,
+                forwardedIps: ipInfo.forwardedIps,
                 appKey: req.getParameter(0),
             },
             req.getHeader('sec-websocket-key'),

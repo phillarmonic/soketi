@@ -1,6 +1,7 @@
 ARG VERSION=18
 
-FROM --platform=$BUILDPLATFORM node:$VERSION-alpine AS build
+FROM node:$VERSION-alpine AS build
+ARG TARGETPLATFORM
 RUN apk add --no-cache --update git python3 py3-pip py3-setuptools gcompat bash curl figlet && \
     apk add --virtual build-dependencies build-base gcc wget && \
     ln -sf python3 /usr/bin/python
@@ -29,6 +30,7 @@ RUN set -e ; \
 
 FROM node:$VERSION-alpine
 ARG TARGETPLATFORM
+ENV SOKETI_BREAKPOINT_DEBUG=false
 
 RUN apk add --no-cache --update libc6-compat gcompat bash figlet
 
