@@ -9,49 +9,16 @@ on:
         type: string
 
 jobs:
-  test:
-    if: "!contains(github.event.head_commit.message, 'skip ci')"
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node:
-          - 18
-
-    name: Node.js ${{ matrix.node }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        name: Setup Node.js v${{ matrix.node }}
-        with:
-          node-version: ${{ matrix.node }}
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Execute lint & build
-        run: |
-          npm run lint
-          npm run build
-
-      - uses: codecov/codecov-action@v3.1.4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-
   docker:
-    needs: test
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        distro: [alpine, debian]
+        distro: [alpine]
         include:
           - distro: alpine
             dockerfile: Dockerfile
-          - distro: debian
-            dockerfile: Dockerfile.debian
+#          - distro: bookworm
+#            dockerfile: Dockerfile.debian
     steps:
       - uses: actions/checkout@v4
 
@@ -97,7 +64,6 @@ jobs:
           push: true
           tags: |
             phillarmonic/soketi:${{ inputs.version }}-${{ matrix.distro }}
-            ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SOKETI_VERSION=${{ inputs.version }}

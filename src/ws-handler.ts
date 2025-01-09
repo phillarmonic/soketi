@@ -279,11 +279,19 @@ export class WsHandler {
      * Mutate the upgrade request.
      */
     handleUpgrade(res: HttpResponse, req: HttpRequest, context): any {
+
+        // Collect all headers during upgrade
+        const headers: {[key: string]: string} = {};
+        req.forEach((key: string, value: string) => {
+            headers[key] = value;
+        });
+
         res.upgrade(
             {
                 ip: Buffer.from(res.getRemoteAddressAsText()).toString('utf8'),
                 ip2: Buffer.from(res.getProxiedRemoteAddressAsText()).toString('utf8'),
                 appKey: req.getParameter(0),
+                headers: headers, //
             },
             req.getHeader('sec-websocket-key'),
             req.getHeader('sec-websocket-protocol'),
