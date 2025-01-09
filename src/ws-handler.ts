@@ -54,8 +54,16 @@ export class WsHandler {
         if (this.server.options.debug) {
             Log.websocketTitle('👨‍🔬 New connection:');
             Log.websocket({ ws });
-        }
 
+            // Log headers if they were captured during upgrade
+            if (ws.headers) {
+                Log.websocketTitle('📝 Connection Headers:');
+                Log.websocket({ headers: ws.headers });
+            }
+            else {
+                Log.websocketTitle('No headers captured during upgrade.');
+            }
+        }
         ws.sendJson = (data) => {
             try {
                 ws.send(JSON.stringify(data));
@@ -281,6 +289,12 @@ export class WsHandler {
     handleUpgrade(res: HttpResponse, req: HttpRequest, context): any {
         const ipInfo = getIpInfo(req, res);
 
+        // Collect all headers during upgrade
+        const headers: {[key: string]: string} = {};
+        req.forEach((key: string, value: string) => {
+            headers[key] = value;
+        });
+
         res.upgrade(
             {
                 ip: ipInfo.clientIp,
@@ -288,6 +302,7 @@ export class WsHandler {
                 proxyIp: ipInfo.proxyIp,
                 forwardedIps: ipInfo.forwardedIps,
                 appKey: req.getParameter(0),
+                headers: headers, // Pass collected headers to the WebSocket
             },
             req.getHeader('sec-websocket-key'),
             req.getHeader('sec-websocket-protocol'),
@@ -295,6 +310,7 @@ export class WsHandler {
             context,
         );
     }
+
 
     /**
      * Send back the pong response.
