@@ -16,7 +16,8 @@ COPY . /tmp/build
 
 WORKDIR /tmp/build
 
-RUN pnpm ci ; \
+RUN set -e ; \
+    pnpm ci ; \
     pnpm run build ; \
     pnpm ci --omit=dev --ignore-scripts ; \
     pnpm prune --production ; \
@@ -25,6 +26,7 @@ RUN pnpm ci ; \
     modclean -n default:safe --run ; \
     mkdir -p /app ; \
     cp -r bin/ dist/ node_modules/ LICENSE package.json package-lock.json README.md /app/
+
 
 FROM node:$VERSION-alpine
 ARG TARGETPLATFORM
