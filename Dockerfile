@@ -19,7 +19,7 @@ WORKDIR /tmp/build
 
 RUN set -e ; \
     pnpm install; \
-    pnpm ci ; \
+    npm ci ; \
     pnpm run build ; \
     pnpm ci --omit=dev --ignore-scripts ; \
     pnpm prune --production ; \
