@@ -64,7 +64,6 @@ jobs:
           push: true
           tags: |
             phillarmonic/soketi:${{ inputs.version }}-${{ matrix.distro }}
-            ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SOKETI_VERSION=${{ inputs.version }}
