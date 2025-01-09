@@ -1,6 +1,35 @@
 const colors = require('colors');
 
 export class Log {
+    static debugEnabled = false;
+
+    static setDebugMode(enabled: boolean): void {
+        this.debugEnabled = enabled;
+    }
+
+    static debug(message: any, context = ''): void {
+        if (!this.debugEnabled) return;
+        const contextPrefix = context ? `[${context}] ` : '';
+        this.log(this.prefixWithTime(contextPrefix + message), 'bold', 'blue', 'mx-2');
+    }
+
+    static debugTitle(message: any): void {
+        if (!this.debugEnabled) return;
+        this.log(this.prefixWithTime(message), 'bold', 'white', 'bgBlue', 'mx-2', 'px-1');
+    }
+
+    static connectionLifecycle(message: any, status: 'start' | 'success' | 'error' | 'info'): void {
+        if (!this.debugEnabled) return;
+        const colors = {
+            start: ['bold', 'white', 'bgBlue'],
+            success: ['bold', 'black', 'bgGreen'],
+            error: ['bold', 'white', 'bgRed'],
+            info: ['bold', 'black', 'bgCyan']
+        };
+        this.log(this.prefixWithTime(`🔄 [Connection] ${message}`), ...colors[status], 'mx-2', 'px-1');
+    }
+
+    // Existing methods remain unchanged
     static infoTitle(message: any): void {
         this.log(message, 'bold', 'black', 'bgCyan', 'mx-2', 'px-1');
     }
@@ -81,7 +110,6 @@ export class Log {
         if (typeof message === 'string') {
             return '[' + (new Date).toString() + '] ' + message;
         }
-
         return message;
     }
 

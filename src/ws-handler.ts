@@ -45,6 +45,7 @@ export class WsHandler {
         this.privateChannelManager = new PrivateChannelManager(server);
         this.encryptedPrivateChannelManager = new EncryptedPrivateChannelManager(server);
         this.presenceChannelManager = new PresenceChannelManager(server);
+        Log.debugEnabled = this.server.options.debug;
     }
 
     /**
@@ -306,9 +307,6 @@ export class WsHandler {
     handlePong(ws: WebSocket): any {
         ws.sendJson({
             event: 'pusher:pong',
-            data: {
-                socket_id: ws.id
-            },
         });
 
         if (this.server.closing) {
