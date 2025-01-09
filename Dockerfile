@@ -5,6 +5,8 @@ RUN apk add --no-cache --update git python3 py3-pip py3-setuptools gcompat bash 
     apk add --virtual build-dependencies build-base gcc wget && \
     ln -sf python3 /usr/bin/python
 
+RUN wget -qO- https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" bash -
+
 # Shell configuration
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -14,12 +16,12 @@ COPY . /tmp/build
 
 WORKDIR /tmp/build
 
-RUN npm ci ; \
-    npm run build ; \
-    npm ci --omit=dev --ignore-scripts ; \
-    npm prune --production ; \
+RUN pnpm ci ; \
+    pnpm run build ; \
+    pnpm ci --omit=dev --ignore-scripts ; \
+    pnpm prune --production ; \
     rm -rf node_modules/*/test/ node_modules/*/tests/ ; \
-    npm install -g modclean ; \
+    pnpm install -g modclean ; \
     modclean -n default:safe --run ; \
     mkdir -p /app ; \
     cp -r bin/ dist/ node_modules/ LICENSE package.json package-lock.json README.md /app/

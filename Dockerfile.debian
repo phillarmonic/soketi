@@ -1,35 +1,37 @@
 ARG VERSION=18
 
-FROM --platform=$BUILDPLATFORM node:$VERSION-bookworm as build
+FROM node:$VERSION-bookworm as build
+ARG TARGETPLATFORM
+
+# Shell configuration
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ENV PYTHONUNBUFFERED=1
 
 COPY . /tmp/build
 
 WORKDIR /tmp/build
-
 RUN apt-get update -y ; \
     apt-get upgrade -y ; \
     apt-get install -y git python3 python3-pip gcc wget
 
-RUN npm ci ; \
-    npm run build ; \
-    npm ci --omit=dev --ignore-scripts ; \
-    npm prune --production ; \
+RUN wget -qO- https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" bash -
+
+RUN pnpm ci ; \
+    pnpm run build ; \
+    pnpm ci --omit=dev --ignore-scripts ; \
+    pnpm prune --production ; \
     rm -rf node_modules/*/test/ node_modules/*/tests/ ; \
-    npm install -g modclean ; \
+    pnpm install -g modclean ; \
     modclean -n default:safe --run ; \
     mkdir -p /app ; \
     cp -r bin/ dist/ node_modules/ LICENSE package.json package-lock.json README.md /app/
 
-FROM --platform=$TARGETPLATFORM node:$VERSION-bullseye-slim
+FROM node:$VERSION-bookworm-slim
+ARG TARGETPLATFORM
 
-LABEL org.opencontainers.image.authors="Soketi <open-source@soketi.app>"
-LABEL org.opencontainers.image.source="https://github.com/soketi/soketi"
-LABEL org.opencontainers.image.url="https://soketi.app"
-LABEL org.opencontainers.image.documentation="https://docs.soketi.app"
-LABEL org.opencontainers.image.vendor="Soketi"
-LABEL org.opencontainers.image.licenses="AGPL-3.0"
+# Shell configuration
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 COPY --from=build /app /app
 
