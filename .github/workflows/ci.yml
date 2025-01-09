@@ -42,6 +42,7 @@ jobs:
           fail_ci_if_error: false
 
   docker:
+    needs: test
     runs-on: ubuntu-latest
     strategy:
       matrix:
