@@ -30,7 +30,7 @@ RUN set -e ; \
 FROM node:$VERSION-alpine
 ARG TARGETPLATFORM
 
-RUN apk add --no-cache --update libc6-compat gcompat bash
+RUN apk add --no-cache --update libc6-compat gcompat bash figlet
 
 # Shell configuration
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
