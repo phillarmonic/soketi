@@ -5,7 +5,7 @@ RUN apk add --no-cache --update git python3 py3-pip py3-setuptools gcompat bash 
     apk add --virtual build-dependencies build-base gcc wget && \
     ln -sf python3 /usr/bin/python
 
-RUN curl -fsSL https://get.pnpm.io/install.sh | sh - \
+RUN curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" sh - \
     && ln -s /root/.local/share/pnpm/pnpm /usr/local/bin/pnpm
 
 # Shell configuration
