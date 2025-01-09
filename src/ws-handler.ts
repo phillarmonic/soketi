@@ -867,7 +867,7 @@ export function isArrayBuffer(obj: any): obj is ArrayBuffer {
  * @returns The converted string
  * @throws Error if the conversion fails
  */
-export function ab2str(buffer: ArrayBuffer, encoding: string = 'utf-8'): string {
+export function ab2str(buffer: ArrayBuffer, encoding = 'utf-8'): string {
     try {
         // First try using TextDecoder if available (modern browsers)
         if (typeof TextDecoder !== 'undefined') {
