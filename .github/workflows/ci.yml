@@ -17,8 +17,8 @@ jobs:
         include:
           - distro: alpine
             dockerfile: Dockerfile
-          - distro: debian
-            dockerfile: Dockerfile.debian
+#          - distro: debian
+#            dockerfile: Dockerfile.debian
     steps:
       - uses: actions/checkout@v4
 

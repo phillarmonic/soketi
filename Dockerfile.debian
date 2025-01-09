@@ -13,7 +13,7 @@ COPY . /tmp/build
 WORKDIR /tmp/build
 RUN apt-get update -y ; \
     apt-get upgrade -y ; \
-    apt-get install -y git python3 python3-pip gcc wget curl
+    apt-get install -y git python3 python3-pip gcc wget curl figlet
 
 RUN set -e ; \
     npm install; \
@@ -38,5 +38,6 @@ COPY --from=build /app /app
 WORKDIR /app
 
 EXPOSE 6001
+COPY --chmod=0755 docker/sh/entrypoint.sh /usr/local/bin/soketi-entrypoint
 
-ENTRYPOINT ["node", "/app/bin/server.js", "start"]
+ENTRYPOINT ["soketi-entrypoint"]
