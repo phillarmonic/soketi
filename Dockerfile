@@ -1,7 +1,7 @@
 ARG VERSION=18
 
 FROM --platform=$BUILDPLATFORM node:$VERSION-alpine AS build
-RUN apk add --no-cache --update git python3 py3-pip py3-setuptools gcompat bash && \
+RUN apk add --no-cache --update git python3 py3-pip py3-setuptools gcompat bash curl && \
     apk add --virtual build-dependencies build-base gcc wget && \
     ln -sf python3 /usr/bin/python
 
