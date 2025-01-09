@@ -116,9 +116,9 @@ export class Metrics implements MetricsInterface {
     /**
      * Get the stored metrics as JSON.
      */
-    getMetricsAsJson(): Promise<prom.metric[]|void> {
+    getMetricsAsJson(): Promise<prom.MetricObjectWithValues<prom.MetricValue<string>>[]> {
         if (!this.server.options.metrics.enabled) {
-            return Promise.resolve();
+            return Promise.resolve([]);  // Return empty array instead of void
         }
 
         return this.driver.getMetricsAsJson();

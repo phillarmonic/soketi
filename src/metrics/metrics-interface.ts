@@ -65,7 +65,7 @@ export interface MetricsInterface {
     /**
      * Get the stored metrics as JSON.
      */
-    getMetricsAsJson(): Promise<prom.metric[]|void>;
+    getMetricsAsJson(): Promise<prom.MetricObjectWithValues<prom.MetricValue<string>>[]>;
 
     /**
      * Reset the metrics at the server level.
