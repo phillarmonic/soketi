@@ -194,7 +194,7 @@ export class Server {
             port: 9601,
         },
         mode: 'full',
-        port: 6001,
+        port: process.env.SOCKET_PORT ? parseInt(process.env.SOCKET_PORT) : 6001,
         pathPrefix: '',
         presence: {
             maxMembersPerChannel: 100,
@@ -353,6 +353,7 @@ export class Server {
                 if (this.options.debug) {
                     Log.info('📡 soketi initialization....');
                     Log.info('⚡ Initializing the HTTP API & Websockets Server...');
+                    Log.info('! Warning: Debug mode is enabled.');
                 }
 
                 let server: TemplatedApp = this.shouldConfigureSsl()
