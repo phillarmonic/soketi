@@ -45,41 +45,40 @@ export class WsHandler {
         this.privateChannelManager = new PrivateChannelManager(server);
         this.encryptedPrivateChannelManager = new EncryptedPrivateChannelManager(server);
         this.presenceChannelManager = new PresenceChannelManager(server);
+        Log.setDebugMode(this.server.options.debug);
     }
 
     /**
      * Handle a new open connection.
      */
     onOpen(ws: WebSocket): any {
+        Log.connectionLifecycle('Connection attempt started', 'start');
+
         if (this.server.options.debug) {
             Log.websocketTitle('👨‍🔬 New connection:');
             Log.websocket({ ws });
 
-            // Log headers if they were captured during upgrade
             if (ws.headers) {
                 Log.websocketTitle('📝 Connection Headers:');
                 Log.websocket({ headers: ws.headers });
-            }
-            else {
+            } else {
                 Log.websocketTitle('No headers captured during upgrade.');
             }
         }
+
         ws.sendJson = (data) => {
             try {
+                Log.debug('Attempting to send message', 'WS');
                 ws.send(JSON.stringify(data));
-
                 this.updateTimeout(ws);
 
                 if (ws.app) {
                     this.server.metricsManager.markWsMessageSent(ws.app.id, data);
                 }
 
-                if (this.server.options.debug) {
-                    Log.websocketTitle('✈ Sent message to client:');
-                    Log.websocket({ ws, data });
-                }
+                Log.debug(`Message sent successfully: ${JSON.stringify(data)}`, 'WS');
             } catch (e) {
-                //
+                Log.debug(`Failed to send message: ${e.message}`, 'WS');
             }
         }
 
@@ -87,7 +86,9 @@ export class WsHandler {
         ws.subscribedChannels = new Set();
         ws.presence = new Map<string, PresenceMemberInfo>();
 
-        // Send immediate socket ID response on connection
+        Log.debug(`Generated socket ID: ${ws.id}`, 'WS');
+
+        // Send immediate socket ID response
         ws.sendJson({
             event: 'socket_id',
             data: {
@@ -96,6 +97,7 @@ export class WsHandler {
         });
 
         if (this.server.closing) {
+            Log.connectionLifecycle('Server is closing - rejecting connection', 'error');
             ws.sendJson({
                 event: 'pusher:error',
                 data: {
@@ -103,12 +105,12 @@ export class WsHandler {
                     message: 'Server is closing. Please reconnect shortly.',
                 },
             });
-
             return ws.end(4200);
         }
 
         this.checkForValidApp(ws).then(validApp => {
             if (!validApp) {
+                Log.connectionLifecycle(`Invalid app key: ${ws.appKey}`, 'error');
                 ws.sendJson({
                     event: 'pusher:error',
                     data: {
@@ -116,14 +118,15 @@ export class WsHandler {
                         message: `App key ${ws.appKey} does not exist.`,
                     },
                 });
-
                 return ws.end(4001);
             }
 
+            Log.debug(`Valid app found for key: ${ws.appKey}`, 'WS');
             ws.app = validApp.forWebSocket();
 
             this.checkIfAppIsEnabled(ws).then(enabled => {
                 if (!enabled) {
+                    Log.connectionLifecycle('App is disabled', 'error');
                     ws.sendJson({
                         event: 'pusher:error',
                         data: {
@@ -131,12 +134,12 @@ export class WsHandler {
                             message: 'The app is not enabled.',
                         },
                     });
-
                     return ws.end(4003);
                 }
 
                 this.checkAppConnectionLimit(ws).then(canConnect => {
                     if (!canConnect) {
+                        Log.connectionLifecycle('Connection limit reached', 'error');
                         ws.sendJson({
                             event: 'pusher:error',
                             data: {
@@ -144,10 +147,9 @@ export class WsHandler {
                                 message: 'The current concurrent connections quota has been reached.',
                             },
                         });
-
                         ws.end(4100);
                     } else {
-                        // Make sure to update the socket after new data was pushed in.
+                        Log.debug('Adding socket to adapter', 'WS');
                         this.server.adapter.addSocket(ws.app.id, ws);
 
                         let broadcastMessage = {
@@ -158,9 +160,11 @@ export class WsHandler {
                             }),
                         };
 
+                        Log.connectionLifecycle('Connection established successfully', 'success');
                         ws.sendJson(broadcastMessage);
 
                         if (ws.app.enableUserAuthentication) {
+                            Log.debug('Setting user authentication timeout', 'WS');
                             this.setUserAuthenticationTimeout(ws);
                         }
 
@@ -170,15 +174,18 @@ export class WsHandler {
             });
         });
     }
-
     /**
      * Handle a received message from the client.
      */
     onMessage(ws: WebSocket, message: uWebSocketMessage, isBinary: boolean): any {
+        Log.debug('Message received', 'WS');
+
         if (message instanceof ArrayBuffer) {
             try {
                 message = JSON.parse(ab2str(message)) as PusherMessage;
+                Log.debug('Successfully parsed ArrayBuffer message', 'WS');
             } catch (err) {
+                Log.debug(`Failed to parse ArrayBuffer message: ${err.message}`, 'WS');
                 return;
             }
         }
@@ -190,14 +197,19 @@ export class WsHandler {
 
         if (message) {
             if (message.event === 'pusher:ping') {
+                Log.debug('Received PING message', 'WS');
                 this.handlePong(ws);
             } else if (message.event === 'pusher:subscribe') {
+                Log.debug('Received SUBSCRIBE message', 'WS');
                 this.subscribeToChannel(ws, message);
             } else if (message.event === 'pusher:unsubscribe') {
+                Log.debug('Received UNSUBSCRIBE message', 'WS');
                 this.unsubscribeFromChannel(ws, message.data.channel);
             } else if (Utils.isClientEvent(message.event)) {
+                Log.debug('Received client-side event message', 'WS');
                 this.handleClientEvent(ws, message);
             } else if (message.event === 'pusher:signin') {
+                Log.debug('Received SIGNIN message', 'WS');
                 this.handleSignin(ws, message);
             } else {
                 Log.warning({
@@ -216,12 +228,13 @@ export class WsHandler {
      * Handle the event of the client closing the connection.
      */
     onClose(ws: WebSocket, code: number, message: uWebSocketMessage): any {
+        Log.connectionLifecycle(`Connection closed with code ${code}`, code === 4200 ? 'info' : 'error');
+
         if (this.server.options.debug) {
             Log.websocketTitle('❌ Connection closed:');
             Log.websocket({ ws, code, message });
         }
 
-        // If code 4200 (reconnect immediately) is called, it means the `closeAllLocalSockets()` was called.
         if (code !== 4200) {
             this.evictSocketFromMemory(ws);
         }
@@ -231,13 +244,34 @@ export class WsHandler {
      * Evict the local socket.
      */
     evictSocketFromMemory(ws: WebSocket): Promise<void> {
-        return this.unsubscribeFromAllChannels(ws, true).then(() => {
-            if (ws.app) {
-                this.server.adapter.removeSocket(ws.app.id, ws.id);
-                this.server.metricsManager.markDisconnection(ws);
-            }
+        // eslint-disable-next-line no-async-promise-executor
+        return new Promise(async (resolve) => {
+            try {
+                await this.unsubscribeFromAllChannels(ws, true);
 
-            this.clearTimeout(ws);
+                if (ws.app) {
+                    await this.server.adapter.removeSocket(ws.app.id, ws.id);
+                    this.server.metricsManager.markDisconnection(ws);
+                }
+
+                // Clear all timeouts and intervals
+                this.clearTimeout(ws);
+                if (ws.userAuthenticationTimeout) {
+                    clearTimeout(ws.userAuthenticationTimeout);
+                    ws.userAuthenticationTimeout = null;
+                }
+
+                // Clear circular references
+                ws.subscribedChannels = null;
+                ws.presence = null;
+                ws.app = null;
+                ws.user = null;
+
+                resolve();
+            } catch (err) {
+                Log.error(`Error during socket eviction: ${err.message}`);
+                resolve(); // Still resolve to continue cleanup
+            }
         });
     }
 
@@ -245,42 +279,53 @@ export class WsHandler {
      * Handle the event to close all existing sockets.
      */
     async closeAllLocalSockets(): Promise<void> {
+        Log.debug('Starting closeAllLocalSockets process', 'Cleanup');
         let namespaces = this.server.adapter.getNamespaces();
 
         if (namespaces.size === 0) {
+            Log.debug('No namespaces found, cleanup complete', 'Cleanup');
             return Promise.resolve();
         }
 
-        return async.each([...namespaces], ([namespaceId, namespace]: [string, Namespace], nsCallback) => {
-            namespace.getSockets().then(sockets => {
-                async.each([...sockets], ([wsId, ws]: [string, WebSocket], wsCallback) => {
+        try {
+            await async.each([...namespaces], async ([namespaceId, namespace]: [string, Namespace]) => {
+                Log.debug(`Processing namespace: ${namespaceId}`, 'Cleanup');
+                const sockets = await namespace.getSockets();
+
+                await async.each([...sockets], async ([wsId, ws]: [string, WebSocket]) => {
                     try {
-                        ws.sendJson({
+                        // Create a sanitized version of the error message
+                        const errorMessage = {
                             event: 'pusher:error',
                             data: {
                                 code: 4200,
                                 message: 'Server closed. Please reconnect shortly.',
                             },
-                        });
+                        };
 
+                        Log.debug(`Closing socket: ${wsId}`, 'Cleanup');
+                        ws.sendJson(errorMessage);
                         ws.end(4200);
                     } catch (e) {
-                        //
+                        Log.error(`Failed to close socket ${wsId}: ${e.message}`);
                     }
 
-                    this.evictSocketFromMemory(ws).then(() => {
-                        wsCallback();
-                    });
-                }).then(() => {
-                    this.server.adapter.clearNamespace(namespaceId).then(() => {
-                        nsCallback();
-                    });
+                    await this.evictSocketFromMemory(ws);
                 });
+
+                Log.debug(`Clearing namespace: ${namespaceId}`, 'Cleanup');
+                await this.server.adapter.clearNamespace(namespaceId);
             });
-        }).then(() => {
-            // One last clear to make sure everything went away.
-            return this.server.adapter.clearNamespaces();
-        });
+
+            // Final cleanup
+            Log.debug('Performing final namespace cleanup', 'Cleanup');
+            await this.server.adapter.clearNamespaces();
+            Log.debug('Cleanup process complete', 'Cleanup');
+        } catch (err) {
+            Log.error(`Cleanup process failed: ${err.message}`);
+            // Re-throw to maintain error propagation
+            throw err;
+        }
     }
 
     /**
@@ -316,11 +361,13 @@ export class WsHandler {
      * Send back the pong response.
      */
     handlePong(ws: WebSocket): any {
+        Log.debug('Received ping, sending pong response', 'WS');
         ws.sendJson({
             event: 'pusher:pong'
         });
 
         if (this.server.closing) {
+            Log.connectionLifecycle('Server closing during pong - terminating connection', 'error');
             ws.sendJson({
                 event: 'pusher:error',
                 data: {
@@ -330,7 +377,6 @@ export class WsHandler {
             });
 
             ws.end(4200);
-
             this.evictSocketFromMemory(ws);
         }
     }
@@ -339,7 +385,10 @@ export class WsHandler {
      * Instruct the server to subscribe the connection to the channel.
      */
     subscribeToChannel(ws: WebSocket, message: PusherMessage): any {
+        Log.debug(`Subscription request received for channel: ${message.data.channel}`, 'WS');
+
         if (this.server.closing) {
+            Log.connectionLifecycle('Server closing during subscription - terminating', 'error');
             ws.sendJson({
                 event: 'pusher:error',
                 data: {
@@ -349,17 +398,17 @@ export class WsHandler {
             });
 
             ws.end(4200);
-
             this.evictSocketFromMemory(ws);
-
             return;
         }
 
         let channel = message.data.channel;
         let channelManager = this.getChannelManagerFor(channel);
+        Log.debug(`Using channel manager: ${channelManager.constructor.name}`, 'WS');
 
         if (channel.length > ws.app.maxChannelNameLength) {
-            let broadcastMessage = {
+            Log.debug('Channel name exceeds maximum length', 'WS');
+            ws.sendJson({
                 event: 'pusher:subscription_error',
                 channel,
                 data: {
@@ -367,18 +416,17 @@ export class WsHandler {
                     error: `The channel name is longer than the allowed ${ws.app.maxChannelNameLength} characters.`,
                     status: 4009,
                 },
-            };
-
-            ws.sendJson(broadcastMessage);
-
+            });
             return;
         }
 
         channelManager.join(ws, channel, message).then((response) => {
+            Log.debug(`Channel join response received: ${JSON.stringify(response)}`, 'WS');
+
             if (!response.success) {
                 let { authError, type, errorMessage, errorCode } = response;
+                Log.connectionLifecycle(`Subscription failed: ${errorMessage}`, 'error');
 
-                // For auth errors, send pusher:subscription_error
                 if (authError) {
                     return ws.sendJson({
                         event: 'pusher:subscription_error',
@@ -391,7 +439,6 @@ export class WsHandler {
                     });
                 }
 
-                // Otherwise, catch any non-auth related errors.
                 return ws.sendJson({
                     event: 'pusher:subscription_error',
                     channel,
@@ -404,19 +451,19 @@ export class WsHandler {
             }
 
             if (!ws.subscribedChannels.has(channel)) {
+                Log.debug(`Adding channel ${channel} to subscribed channels`, 'WS');
                 ws.subscribedChannels.add(channel);
             }
 
-            // Make sure to update the socket after new data was pushed in.
             this.server.adapter.addSocket(ws.app.id, ws);
 
-            // If the connection freshly joined, send the webhook:
             if (response.channelConnections === 1) {
+                Log.debug('First connection to channel - sending occupied webhook', 'WS');
                 this.server.webhookSender.sendChannelOccupied(ws.app, channel);
             }
 
-            // For non-presence channels, end with subscription succeeded.
             if (!(channelManager instanceof PresenceChannelManager)) {
+                Log.debug('Sending subscription success for non-presence channel', 'WS');
                 let broadcastMessage = {
                     event: 'pusher_internal:subscription_succeeded',
                     channel,
@@ -428,20 +475,18 @@ export class WsHandler {
                     this.sendMissedCacheIfExists(ws, channel);
                 }
 
+                Log.connectionLifecycle(`Successfully subscribed to channel: ${channel}`, 'success');
                 return;
             }
 
-            // Otherwise, prepare a response for the presence channel.
+            Log.debug('Processing presence channel subscription', 'WS');
             this.server.adapter.getChannelMembers(ws.app.id, channel, false).then(members => {
                 let { user_id, user_info } = response.member;
-
                 ws.presence.set(channel, response.member);
-
-                // Make sure to update the socket after new data was pushed in.
                 this.server.adapter.addSocket(ws.app.id, ws);
 
-                // If the member already exists in the channel, don't resend the member_added event.
                 if (!members.has(user_id as string)) {
+                    Log.debug(`Adding new member ${user_id} to presence channel`, 'WS');
                     this.server.webhookSender.sendMemberAdded(ws.app, channel, user_id as string);
 
                     this.server.adapter.send(ws.app.id, channel, JSON.stringify({
@@ -473,8 +518,11 @@ export class WsHandler {
                 if (Utils.isCachingChannel(channel)) {
                     this.sendMissedCacheIfExists(ws, channel);
                 }
+
+                Log.connectionLifecycle(`Successfully subscribed to presence channel: ${channel}`, 'success');
             }).catch(err => {
                 Log.error(err);
+                Log.connectionLifecycle(`Server error during presence subscription: ${err.message}`, 'error');
 
                 ws.sendJson({
                     event: 'pusher:error',
@@ -488,7 +536,6 @@ export class WsHandler {
             });
         });
     }
-
     /**
      * Instruct the server to unsubscribe the connection from the channel.
      */
