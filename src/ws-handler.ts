@@ -13,7 +13,6 @@ import { Server } from './server';
 import { Utils } from './utils';
 import { WebSocket } from 'uWebSockets.js';
 
-import ab2str from 'arraybuffer-to-string';
 import Pusher from 'pusher';
 
 export class WsHandler {
@@ -281,8 +280,8 @@ export class WsHandler {
     handleUpgrade(res: HttpResponse, req: HttpRequest, context): any {
         res.upgrade(
             {
-                ip: ab2str(res.getRemoteAddressAsText()),
-                ip2: ab2str(res.getProxiedRemoteAddressAsText()),
+                ip: Buffer.from(res.getRemoteAddressAsText()).toString('utf8'),
+                ip2: Buffer.from(res.getProxiedRemoteAddressAsText()).toString('utf8'),
                 appKey: req.getParameter(0),
             },
             req.getHeader('sec-websocket-key'),
