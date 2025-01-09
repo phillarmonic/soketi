@@ -12,9 +12,9 @@ import { PusherMessage, uWebSocketMessage } from './message';
 import { Server } from './server';
 import { Utils } from './utils';
 import { WebSocket } from 'uWebSockets.js';
+import { PusherToken } from './utils/pusher-token';
 
-const ab2str = require('arraybuffer-to-string');
-const Pusher = require('pusher');
+import Pusher from 'pusher';
 
 export class WsHandler {
     /**
@@ -78,6 +78,14 @@ export class WsHandler {
         ws.id = this.generateSocketId();
         ws.subscribedChannels = new Set();
         ws.presence = new Map<string, PresenceMemberInfo>();
+
+        // Send immediate socket ID response on connection
+        ws.sendJson({
+            event: 'socket_id',
+            data: {
+                socket_id: ws.id
+            }
+        });
 
         if (this.server.closing) {
             ws.sendJson({
@@ -273,8 +281,8 @@ export class WsHandler {
     handleUpgrade(res: HttpResponse, req: HttpRequest, context): any {
         res.upgrade(
             {
-                ip: ab2str(res.getRemoteAddressAsText()),
-                ip2: ab2str(res.getProxiedRemoteAddressAsText()),
+                ip: Buffer.from(res.getRemoteAddressAsText()).toString('utf8'),
+                ip2: Buffer.from(res.getProxiedRemoteAddressAsText()).toString('utf8'),
                 appKey: req.getParameter(0),
             },
             req.getHeader('sec-websocket-key'),
@@ -290,7 +298,9 @@ export class WsHandler {
     handlePong(ws: WebSocket): any {
         ws.sendJson({
             event: 'pusher:pong',
-            data: {},
+            data: {
+                socket_id: ws.id
+            },
         });
 
         if (this.server.closing) {
@@ -770,12 +780,10 @@ export class WsHandler {
      */
     protected signinTokenForUserData(ws: WebSocket, userData: string): Promise<string> {
         return new Promise(resolve => {
-            let decodedString = `${ws.id}::user::${userData}`;
-            let token = new Pusher.Token(ws.app.key, ws.app.secret);
+            const decodedString = `${ws.id}::user::${userData}`;
+            const token = new PusherToken(ws.app.key, ws.app.secret);
 
-            resolve(
-                ws.app.key + ':' + token.sign(decodedString)
-            );
+            resolve(token.generateAuthSignature(decodedString));
         });
     }
 
@@ -834,5 +842,56 @@ export class WsHandler {
                 //
             }
         }, this.server.options.userAuthenticationTimeout);
+    }
+}
+
+/**
+ * Checks if the input is an ArrayBuffer
+ *
+ * @param obj - The object to check
+ * @returns boolean indicating if the object is an ArrayBuffer
+ */
+export function isArrayBuffer(obj: any): obj is ArrayBuffer {
+    return obj instanceof ArrayBuffer ||
+        (obj != null &&
+            obj.constructor != null &&
+            obj.constructor.name === 'ArrayBuffer' &&
+            obj.byteLength != null);
+}
+
+/**
+ * Converts an ArrayBuffer to a string with proper encoding handling.
+ *
+ * @param buffer - The ArrayBuffer to convert
+ * @param encoding - The encoding to use (defaults to 'utf-8')
+ * @returns The converted string
+ * @throws Error if the conversion fails
+ */
+export function ab2str(buffer: ArrayBuffer, encoding: string = 'utf-8'): string {
+    try {
+        // First try using TextDecoder if available (modern browsers)
+        if (typeof TextDecoder !== 'undefined') {
+            return new TextDecoder(encoding).decode(buffer);
+        }
+
+        // Fallback for older environments
+        // Convert ArrayBuffer to Uint8Array
+        const uint8Array = new Uint8Array(buffer);
+
+        // Convert Uint8Array to regular array
+        const numbers = Array.prototype.slice.call(uint8Array);
+
+        // Convert numbers to characters and join
+        const result = String.fromCharCode.apply(null, numbers);
+
+        // Handle UTF-8 encoding if needed
+        if (encoding.toLowerCase() === 'utf-8') {
+            // Handle UTF-8 encoding by decoding escaped sequences
+            return decodeURIComponent(escape(result));
+        }
+
+        return result;
+    } catch (error) {
+        throw new Error(`Failed to convert ArrayBuffer to string: ${error.message}`);
     }
 }

@@ -1,6 +1,12 @@
-ARG VERSION=lts
+ARG VERSION=18
 
-FROM --platform=$BUILDPLATFORM node:$VERSION-alpine as build
+FROM --platform=$BUILDPLATFORM node:$VERSION-alpine AS build
+RUN apk add --no-cache --update git python3 py3-pip py3-setuptools gcompat bash && \
+    apk add --virtual build-dependencies build-base gcc wget && \
+    ln -sf python3 /usr/bin/python
+
+# Shell configuration
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ENV PYTHONUNBUFFERED=1
 
@@ -8,12 +14,7 @@ COPY . /tmp/build
 
 WORKDIR /tmp/build
 
-RUN apk add --no-cache --update git python3 gcompat ; \
-    apk add --virtual build-dependencies build-base gcc wget ; \
-    ln -sf python3 /usr/bin/python ; \
-    python3 -m ensurepip ; \
-    pip3 install --no-cache --upgrade pip setuptools ; \
-    npm ci ; \
+RUN npm ci ; \
     npm run build ; \
     npm ci --omit=dev --ignore-scripts ; \
     npm prune --production ; \
@@ -23,7 +24,10 @@ RUN apk add --no-cache --update git python3 gcompat ; \
     mkdir -p /app ; \
     cp -r bin/ dist/ node_modules/ LICENSE package.json package-lock.json README.md /app/
 
-FROM --platform=$TARGETPLATFORM node:$VERSION-alpine
+FROM node:$VERSION-alpine
+ARG TARGETPLATFORM
+
+RUN apk add --no-cache --update libc6-compat gcompat bash
 
 LABEL org.opencontainers.image.authors="Soketi <open-source@soketi.app>"
 LABEL org.opencontainers.image.source="https://github.com/soketi/soketi"
@@ -32,8 +36,12 @@ LABEL org.opencontainers.image.documentation="https://docs.soketi.app"
 LABEL org.opencontainers.image.vendor="Soketi"
 LABEL org.opencontainers.image.licenses="AGPL-3.0"
 
-RUN apk add --no-cache libc6-compat ; \
+# Shell configuration
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+RUN if [ -e /lib/ld-linux-x86-64.so.2 ]; then rm -f /lib/ld-linux-x86-64.so.2; fi; \
     ln -s /lib/libc.musl-x86_64.so.1 /lib/ld-linux-x86-64.so.2
+
 
 COPY --from=build /app /app
 

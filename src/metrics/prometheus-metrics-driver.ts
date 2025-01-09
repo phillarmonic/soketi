@@ -3,6 +3,7 @@ import { WebSocket } from 'uWebSockets.js';
 import { MetricsInterface } from './metrics-interface';
 import { Server } from '../server';
 import { Utils } from '../utils';
+import { MetricObjectWithValues } from 'prom-client';
 
 interface PrometheusMetrics {
     connectedSockets?: prom.Gauge<'app_id'|'port'>;
@@ -143,16 +144,16 @@ export class PrometheusMetricsDriver implements MetricsInterface {
         this.metrics.horizontalAdapterSentRequests.inc(this.getTags(appId));
     }
 
-     /**
-      * Handle a new horizontal adapter request that was marked as received.
-      */
+    /**
+     * Handle a new horizontal adapter request that was marked as received.
+     */
     markHorizontalAdapterRequestReceived(appId: string): void {
         this.metrics.horizontalAdapterReceivedRequests.inc(this.getTags(appId));
     }
 
-     /**
-      * Handle a new horizontal adapter response from other node.
-      */
+    /**
+     * Handle a new horizontal adapter response from other node.
+     */
     markHorizontalAdapterResponseReceived(appId: string): void {
         this.metrics.horizontalAdapterReceivedResponses.inc(this.getTags(appId));
     }
@@ -167,7 +168,7 @@ export class PrometheusMetricsDriver implements MetricsInterface {
     /**
      * Get the stored metrics as JSON.
      */
-    getMetricsAsJson(): Promise<prom.metric[]|void> {
+    getMetricsAsJson(): Promise<prom.MetricObjectWithValues<prom.MetricValue<string>>[]> {
         return this.register.getMetricsAsJSON();
     }
 

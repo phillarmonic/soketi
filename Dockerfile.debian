@@ -1,6 +1,6 @@
-ARG VERSION=lts
+ARG VERSION=18
 
-FROM --platform=$BUILDPLATFORM node:$VERSION-bullseye as build
+FROM --platform=$BUILDPLATFORM node:$VERSION-bookworm as build
 
 ENV PYTHONUNBUFFERED=1
 
@@ -10,8 +10,9 @@ WORKDIR /tmp/build
 
 RUN apt-get update -y ; \
     apt-get upgrade -y ; \
-    apt-get install -y git python3 gcc wget ; \
-    npm ci ; \
+    apt-get install -y git python3 python3-pip gcc wget
+
+RUN npm ci ; \
     npm run build ; \
     npm ci --omit=dev --ignore-scripts ; \
     npm prune --production ; \
