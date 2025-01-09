@@ -18,6 +18,7 @@ COPY . /tmp/build
 WORKDIR /tmp/build
 
 RUN set -e ; \
+    pnpm install; \
     pnpm ci ; \
     pnpm run build ; \
     pnpm ci --omit=dev --ignore-scripts ; \
@@ -33,13 +34,6 @@ FROM node:$VERSION-alpine
 ARG TARGETPLATFORM
 
 RUN apk add --no-cache --update libc6-compat gcompat bash
-
-LABEL org.opencontainers.image.authors="Soketi <open-source@soketi.app>"
-LABEL org.opencontainers.image.source="https://github.com/soketi/soketi"
-LABEL org.opencontainers.image.url="https://soketi.app"
-LABEL org.opencontainers.image.documentation="https://docs.soketi.app"
-LABEL org.opencontainers.image.vendor="Soketi"
-LABEL org.opencontainers.image.licenses="AGPL-3.0"
 
 # Shell configuration
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]

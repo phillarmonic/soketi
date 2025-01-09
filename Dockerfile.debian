@@ -19,6 +19,7 @@ RUN curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(whi
     && ln -s /root/.local/share/pnpm/pnpm /usr/local/bin/pnpm
 
 RUN set -e ; \
+    pnpm install; \
     pnpm ci ; \
     pnpm run build ; \
     pnpm ci --omit=dev --ignore-scripts ; \
