@@ -29,6 +29,7 @@ RUN set -e ; \
 
 FROM node:$VERSION-bookworm-slim
 ARG TARGETPLATFORM
+ENV SOKETI_BREAKPOINT_DEBUG=false
 
 # Shell configuration
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
