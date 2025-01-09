@@ -15,7 +15,8 @@ RUN apt-get update -y ; \
     apt-get upgrade -y ; \
     apt-get install -y git python3 python3-pip gcc wget
 
-RUN wget -qO- https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" bash -
+RUN curl -fsSL https://get.pnpm.io/install.sh | sh - \
+    && ln -s /root/.local/share/pnpm/pnpm /usr/local/bin/pnpm
 
 RUN set -e ; \
     pnpm ci ; \
