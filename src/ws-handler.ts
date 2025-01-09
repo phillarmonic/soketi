@@ -52,9 +52,21 @@ export class WsHandler {
      */
     onOpen(ws: WebSocket): any {
         if (this.server.options.debug) {
-            Log.websocketTitle('👨‍🔬 New connection:');
+            Log.websocketTitle('👨‍🔬 New connection from a WS Client:');
             Log.websocket({ ws });
         }
+
+        ws.id = this.generateSocketId();
+        ws.subscribedChannels = new Set();
+        ws.presence = new Map<string, PresenceMemberInfo>();
+
+        // Send immediate socket ID response on connection
+        ws.sendJson({
+            event: 'socket_id',
+            data: {
+                socket_id: ws.id
+            }
+        });
 
         ws.sendJson = (data) => {
             try {
@@ -75,17 +87,6 @@ export class WsHandler {
             }
         }
 
-        ws.id = this.generateSocketId();
-        ws.subscribedChannels = new Set();
-        ws.presence = new Map<string, PresenceMemberInfo>();
-
-        // Send immediate socket ID response on connection
-        ws.sendJson({
-            event: 'socket_id',
-            data: {
-                socket_id: ws.id
-            }
-        });
 
         if (this.server.closing) {
             ws.sendJson({
