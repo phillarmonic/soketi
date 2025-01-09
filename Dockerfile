@@ -27,6 +27,8 @@ RUN npm ci ; \
 FROM node:$VERSION-alpine
 ARG TARGETPLATFORM
 
+RUN apk add --no-cache --update libc6-compat gcompat bash
+
 LABEL org.opencontainers.image.authors="Soketi <open-source@soketi.app>"
 LABEL org.opencontainers.image.source="https://github.com/soketi/soketi"
 LABEL org.opencontainers.image.url="https://soketi.app"
@@ -34,8 +36,10 @@ LABEL org.opencontainers.image.documentation="https://docs.soketi.app"
 LABEL org.opencontainers.image.vendor="Soketi"
 LABEL org.opencontainers.image.licenses="AGPL-3.0"
 
-RUN apk add --no-cache libc6-compat ; \
-    if [ -e /lib/ld-linux-x86-64.so.2 ]; then rm -f /lib/ld-linux-x86-64.so.2; fi; \
+# Shell configuration
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+RUN if [ -e /lib/ld-linux-x86-64.so.2 ]; then rm -f /lib/ld-linux-x86-64.so.2; fi; \
     ln -s /lib/libc.musl-x86_64.so.1 /lib/ld-linux-x86-64.so.2
 
 
